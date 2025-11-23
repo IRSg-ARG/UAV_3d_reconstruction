@@ -25,7 +25,7 @@ By default, the project works with the **standard [Voxblox](https://github.com/e
 
 If you plan to use the **multi-robot version** of these planners, you must instead install a **modified version of Voxblox** that supports centralized multi-robot mapping.
 
-To install the customized version, clone and build it from [here](https://github.com/joaom2a0r0i1a/feature-centralized_multi_robot_voxblox), following the same installation steps as in the official [Voxblox instructions](https://voxblox.readthedocs.io/en/latest/pages/Installation.html).
+To install the customized version, clone and build it from [here](https://github.com/IRSg-ARG/centralized_multi_robot_voxblox), following the same installation steps as in the official [Voxblox instructions](https://voxblox.readthedocs.io/en/latest/pages/Installation.html).
 
 ## Repository Installation
 
@@ -55,13 +55,13 @@ cd ~/catkin_ws/src
 Clone the repository using SSH (recommended) or HTTPS:
 ```bash
 # Using SSH
-git clone --recursive git@github.com:joaom2a0r0i1a/UAV_3D_reconstruction.git
+git clone --recursive git@github.com:IRSg-ARG/UAV_3d_reconstruction.git
 # OR using HTTPS
-git clone --recursive https://github.com/joaom2a0r0i1a/UAV_3D_reconstruction.git
+git clone --recursive https://github.com/IRSg-ARG/UAV_3d_reconstruction.git
 ```
 If you clone without ```--recursive```, initialize submodules manually:
 ```bash
-cd UAV_3D_reconstruction
+cd UAV_3d_reconstruction
 git submodule update --init --recursive
 ```
 
@@ -73,7 +73,7 @@ source devel/setup.bash
 
 ### 4. Build the workspace
 ```bash
-cd ~/catkin_ws/src/UAV_3D_reconstruction
+cd ~/catkin_ws
 catkin build
 ```
 
@@ -84,7 +84,7 @@ catkin build
 To start the simulation with one drone:
 
 ```bash
-cd ~/catkin_ws/src/UAV_3D_reconstruction/motion_planning/tmux/one_drone
+cd ~/catkin_ws/src/UAV_3d_reconstruction/motion_planning/tmux/one_drone
 ./start.sh
 ```
 ### Multi-Drone Simulation
@@ -92,7 +92,7 @@ cd ~/catkin_ws/src/UAV_3D_reconstruction/motion_planning/tmux/one_drone
 For a three-drone simulation:
 
 ```bash
-cd ~/catkin_ws/src/UAV_3D_reconstruction/multi_motion_planning/tmux/three_drones
+cd ~/catkin_ws/src/UAV_3d_reconstruction/multi_motion_planning/tmux/three_drones
 ./start.sh
 ```
 To configure which simulation scenario and algorithms to run, edit the ```session.yml``` file accordingly. This follows the standard MRS UAV System format. 
@@ -100,7 +100,7 @@ To configure which simulation scenario and algorithms to run, edit the ```sessio
 You can find additional MRS examples in the [mrs_core_examples](https://github.com/ctu-mrs/mrs_core_examples) repository.
 
 # Environments
-The three Gazebo environments used to evaluate the exploration algorithms can be downloaded [here](https://github.com/joaom2a0r0i1a/UAV_3D_reconstruction/releases/tag/environments-v1/Environments.zip). They are provided as a ```.zip``` archive containing the ```.world``` files.
+The three Gazebo environments used to evaluate the exploration algorithms can be downloaded [here](https://github.com/IRSg-ARG/UAV_3d_reconstruction/releases/tag/environments-v1/Environments.zip). They are provided as a ```.zip``` archive containing the ```.world``` files.
 
 To use these environments with the MRS UAV System, extract the contents of the archive and move the ```.world``` files into the following directory:
 ```bash
