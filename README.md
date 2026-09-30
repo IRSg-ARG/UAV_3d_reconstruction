@@ -1,5 +1,23 @@
-# Kinodynamic Trajectory Planning For Exploration and 3D Reconstruction
-This repository contains two real-time kinodynamic trajectory planners for efficient Unmanned Aerial Vehicle (UAV) exploration: the **Kinodynamic Autonomous Exploration Planner (KAEP)** and the **Kinodynamic Receding-Horizon Next-Best-View Planner (KRH-NBVP)**. Both planners use a Kinodynamic Rapidly-Exploring Random Tree (KRRT) to evaluate and select the next-best viewpoints that maximize expected information gain while minimizing flight cost. The methods explicitly account for the UAV’s kinodynamic model and constraints, enabling fast, smooth, and feasible trajectories for exploration and 3D reconstruction tasks.
+# UAV Exploration and 3D Reconstruction
+
+This repository contains sampling-based motion planners for the autonomous exploration and 3D
+reconstruction of unknown environments with Unmanned Aerial Vehicles (UAVs). It includes the
+Receding-Horizon Next-Best-View Planner (RH-NBVP) and the Autonomous Exploration Planner (AEP),
+together with their kinodynamic versions, the Kinodynamic Receding-Horizon Next-Best-View Planner
+(KRH-NBVP) and the Kinodynamic Autonomous Exploration Planner (KAEP).
+
+KRH-NBVP and KAEP incorporate the UAV's kinodynamic model and constraints into a kinodynamic RRT,
+producing smooth and dynamically feasible trajectories. KRH-NBVP is a local kinodynamic planner,
+and KAEP is a global kinodynamic planner that ensures full environment coverage through the
+Iterative Minimum Gain (IMG) and selects the yaw of each viewpoint with the Informed Yaw
+Optimization (IYO).
+
+RH-NBVP and AEP evaluate the information gain of their candidate viewpoints on the GPU, either as
+the absolute gain of each viewpoint or as the path-dependent marginal gain, which excludes the
+space that the preceding viewpoints on the same path are already expected to observe.
+
+All planners run in simulation with the MRS UAV System, in centralized multi-UAV exploration, and
+on real UAVs through mavros.
 
 # Installation
 
@@ -9,6 +27,7 @@ This repository has been tested in linux with:
 - ROS Noetic
 - `catkin tools`
 - `catkin_simple`
+- CUDA 11.0 (or newer)
 
 ### 1. Install ROS Noetic (Desktop-Full is recommended). 
 
@@ -49,19 +68,21 @@ catkin profile set reldeb                     # set the reldeb profile as active
 ```
 
 ### 2. Clone the repository
+The Gazebo worlds come with the `uav_gazebo_environments` submodule, fetched with the same
+protocol as the main clone: an SSH clone gets it over SSH, an HTTPS clone over HTTPS.
 ```bash
 cd ~/catkin_ws/src
 ```
 Clone the repository using SSH (recommended) or HTTPS:
 ```bash
 # Using SSH
-git clone --recursive git@github.com:IRSg-ARG/UAV_3d_reconstruction.git
+git clone --recursive git@github.com:IRSg-ARG/UAV_3d_reconstruction.git UAV_3D_reconstruction
 # OR using HTTPS
-git clone --recursive https://github.com/IRSg-ARG/UAV_3d_reconstruction.git
+git clone --recursive https://github.com/IRSg-ARG/UAV_3d_reconstruction.git UAV_3D_reconstruction
 ```
-If you clone without ```--recursive```, initialize submodules manually:
+If you clone without ```--recursive```, fetch the submodule afterwards:
 ```bash
-cd UAV_3d_reconstruction
+cd UAV_3D_reconstruction
 git submodule update --init --recursive
 ```
 
@@ -73,7 +94,7 @@ source devel/setup.bash
 
 ### 4. Build the workspace
 ```bash
-cd ~/catkin_ws
+cd ~/catkin_ws/src/UAV_3D_reconstruction
 catkin build
 ```
 
@@ -84,7 +105,7 @@ catkin build
 To start the simulation with one drone:
 
 ```bash
-cd ~/catkin_ws/src/UAV_3d_reconstruction/motion_planning/tmux/one_drone
+cd ~/catkin_ws/src/UAV_3D_reconstruction/single/motion_planning/tmux/one_drone
 ./start.sh
 ```
 ### Multi-Drone Simulation
@@ -92,7 +113,7 @@ cd ~/catkin_ws/src/UAV_3d_reconstruction/motion_planning/tmux/one_drone
 For a three-drone simulation:
 
 ```bash
-cd ~/catkin_ws/src/UAV_3d_reconstruction/multi_motion_planning/tmux/three_drones
+cd ~/catkin_ws/src/UAV_3D_reconstruction/multi/multi_motion_planning/tmux/three_drones
 ./start.sh
 ```
 To configure which simulation scenario and algorithms to run, edit the ```session.yml``` file accordingly. This follows the standard MRS UAV System format. 
@@ -100,30 +121,150 @@ To configure which simulation scenario and algorithms to run, edit the ```sessio
 You can find additional MRS examples in the [mrs_core_examples](https://github.com/ctu-mrs/mrs_core_examples) repository.
 
 # Environments
-The three Gazebo environments used to evaluate the exploration algorithms can be downloaded [here](https://github.com/IRSg-ARG/UAV_3d_reconstruction/releases/tag/environments-v1/Environments.zip). They are provided as a ```.zip``` archive containing the ```.world``` files.
 
-To use these environments with the MRS UAV System, extract the contents of the archive and move the ```.world``` files into the following directory:
+The Gazebo worlds live in their own repository,
+[uav_gazebo_environments](https://github.com/IRSg-ARG/uav_gazebo_environments),
+linked here as the `uav_gazebo_environments` submodule and cloned with the repository (see
+[Clone the repository](#2-clone-the-repository)). The submodule is pinned to the commit this
+code was tested with. To move it to the newest `main`:
+
 ```bash
-/opt/ros/noetic/share/mrs_gazebo_common_resources/worlds/
+git submodule update --remote uav_gazebo_environments
 ```
-This is the default location used by the MRS framework to load world files. After moving, you can select the desired world in your ```session.yml``` file via the ```world_name``` argument.
+
+It carries six worlds and, for each, the three regions the pipeline needs, where the planner
+may sample, where gain is counted and what the evaluation measures.
+
+Switching environment is one name. Set `environment` in the planner config, or export
+`PLANNER_ENV`, and every node picks up the right regions:
+
+```yaml
+environment: warehouse
+```
+
+Choosing a planner is the same idea:
+
+```bash
+roslaunch motion_planning planner.launch planner:=kaep      # or rhnbvp, aep, krhnbvp
+```
+
+# Running Experiments
+
+An experiment is one flight in the single-drone simulation. The flight is recorded and scored
+afterwards. The scoring needs `python3-scipy` and `python3-matplotlib`.
+
+### 1. Fly
+
+The settings of an experiment are at the top of
+`single/motion_planning/tmux/one_drone/session.yml`:
+
+```yaml
+  - export PLANNER_KIND=${PLANNER_KIND:-rhnbvp}                                   # aep | rhnbvp | kaep | krhnbvp
+  - export PLANNER_ENV=${PLANNER_ENV:-school}                                     # school | police | warehouse | multistory | big_maze | maze
+  - export EXP_TIME_LIMIT=${EXP_TIME_LIMIT:-30}                                   # [min] flight length
+  - export EXP_DATA_DIR=${EXP_DATA_DIR:-$(rospack find motion_planning)/data}    # run and bag folder
+```
+
+Change the value after `:-`. Give every condition its own data folder, for example
+`$(rospack find motion_planning)/data/aep_school`, so the conditions can be compared later. To
+choose the gain of AEP and RH-NBVP, add `marginal_gain:=true` or `marginal_gain:=false` to the
+`planner.launch` line further down the same file. Then start the simulation:
+
+```bash
+cd ~/catkin_ws/src/UAV_3D_reconstruction/single/motion_planning/tmux/one_drone
+./start.sh
+```
+
+The drone takes off, the planner starts on its own and the flight ends at the time limit. The run
+is saved in the data folder as `<date>_<time>/`, with the saved maps, `voxblox_data.csv` and
+`data_log.txt`, and its recording goes to `tmp_bags/` next to it. Close the session with
+`./kill.sh` and start again for the next run.
+
+### 2. Score each run
+
+```bash
+DATA=$(rospack find motion_planning)/data
+roslaunch motion_planning full_voxblox_eval.launch target_directory:=$DATA/aep_school \
+    environment:=school method:=all evaluate_volume:=true create_meshes:=true error_histogram:=true
+```
+
+This scores every run in `aep_school`.
+
+- `environment` selects the region that is scored, the same one the drone flew in.
+- School and police are compared with their ground truth cloud,
+  `uav_gazebo_environments/ground_truth/<environment>.ply`, which gives the mean error, RMSE and
+  unknown voxels of every saved map. `evaluate_volume:=true` adds the reconstructed volume.
+- The other worlds have no ground truth cloud. `evaluate:=false` turns the comparison off, so they
+  are scored by reconstructed volume alone, which is why `evaluate_volume:=true` must stay on.
+- `create_meshes` and `error_histogram` add a mesh of every saved map and a histogram of the errors.
+
+The scores are added to each run's `voxblox_data.csv` and the figures go to its `graphs/`. A run
+is only scored once, running the command again skips it.
+
+### 3. Compare conditions
+
+```bash
+roslaunch motion_planning full_voxblox_eval.launch target_directory:=$DATA environment:=school \
+    multi_series:=true series_labels:=aep_school,rhnbvp_school
+```
+
+Use the same `evaluate` settings as in step 2. The conditions are plotted together in
+`$DATA/multi_series_evaluation/`, and the time each one takes to reach 25, 50, 75 and 95 %
+coverage, with its final coverage, is saved in `milestones.txt` in the same folder. Coverage is
+the known part of the ground truth for school and police, and the reconstructed volume over the
+volume of the region for the other worlds.
+
+### 4. Paper metrics
+
+```bash
+export MP=$(rospack find motion_planning)
+S=$MP/scripts/evaluation/analysis
+python3 $S/milestones_from_log.py $DATA/multi_series_evaluation/milestones.txt   # E25 to E95 and final coverage
+python3 $S/path_vel_mapped.py aep_school                                       # path length and average velocity
+python3 $S/termination_time.py aep_school                                      # AEP termination time
+```
+
+The last two read the condition from `$MP/data`. The gain accuracy and computation time come from
+the gain benchmark, described in
+[scripts/evaluation/figures](single/motion_planning/scripts/evaluation/figures/README.md).
 
 # Notes
-- For reproducibility of the results shown in the paper, ensure you are using the specified versions of **MRS** and the **customized Voxblox** repository linked above.
-- Performance may vary depending on your hardware (slower hardware may lead to worse results). The experiments in the paper were conducted using:
-  - **CPU:** Intel® Core™ i9 (14th Gen)
-  - **GPU:** NVIDIA GeForce RTX 4060
+- For reproducibility of the results shown in the papers below, ensure you are using the specified versions of **MRS** and the **customized Voxblox** repository linked above.
+- Performance may vary depending on your hardware (slower hardware may lead to worse results). The experiments were conducted using:
+  - **Kinodynamic planners and centralized multi-UAV exploration:** Intel® Core™ i9-14900K (14th Gen) CPU and NVIDIA GeForce RTX 4060 GPU
+  - **Path-dependent marginal gain on the GPU:** Intel® Core™ i7-13650HX (13th Gen) CPU and NVIDIA GeForce RTX 5060 Laptop GPU
 
 # Credits
-If you use this work in your research, please cite the following paper:
 
-Joao Felix Mendes, Meysam Basiri, and Rodrigo Ventura.,**“Kinodynamic Trajectory Planning for Efficient UAV Exploration and Reconstruction of Unknown Environments.”** in IEEE Robotics and Automation Letters (RAL), Accepted, November 2025.
-```bash
-@article{mendes2025kinodynamic,
-  title={Kinodynamic Trajectory Planning for Efficient UAV Exploration and Reconstruction of Unknown Environments},
-  author={Mendes, Joao Felix and Basiri, Meysam and Ventura, Rodrigo},
-  journal={IEEE Robotics and Automation Letters},
-  year={2025},
-  note={Accepted, November 2025}
+If you use this work, please cite the corresponding paper.
+
+**Kinodynamic planners (KRH-NBVP and KAEP)**, published in IEEE Robotics and Automation Letters [[IEEE](https://doi.org/10.1109/LRA.2025.3641147) | [video](https://youtu.be/FH2H081dvIY?si=S1QOr2jUzNWFeyol)].
+
+```bibtex
+@article{Mendes_2026,
+  author  = {Mendes, Jo{\~a}o F{\'e}lix and Basiri, Meysam and Ventura, Rodrigo},
+  title   = {Kinodynamic Trajectory Planning for Efficient UAV Exploration
+             and Reconstruction of Unknown Environments},
+  journal = {IEEE Robotics and Automation Letters},
+  year    = {2026},
+  volume  = {11},
+  number  = {2},
+  pages   = {1530--1537},
+  doi     = {10.1109/LRA.2025.3641147}
 }
 ```
+
+**Centralized multi-UAV exploration**, presented at the IEEE International Conference on Advanced
+Robotics and Mechatronics (ICARM) 2026. The IEEE Xplore entry is not yet available.
+
+```bibtex
+@inproceedings{Mendes_ICARM_2026,
+  author    = {Mendes, Jo{\~a}o F{\'e}lix and Basiri, Meysam and Ventura, Rodrigo},
+  title     = {Centralized Multi-UAV Exploration and 3D Reconstruction Using Single-UAV
+               Planners},
+  booktitle = {IEEE International Conference on Advanced Robotics and Mechatronics (ICARM)},
+  year      = {2026}
+}
+```
+
+**Path-dependent marginal gain on the GPU**, submitted to ICRA and under review.

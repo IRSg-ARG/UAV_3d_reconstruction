@@ -1,4 +1,4 @@
-[submodule "traj_generation"]
-	path = traj_generation
-	url = git@github.com:IRSg-ARG/traj_generation.git
+[submodule "uav_gazebo_environments"]
+	path = uav_gazebo_environments
+	url = ../uav_gazebo_environments.git
 	branch = main

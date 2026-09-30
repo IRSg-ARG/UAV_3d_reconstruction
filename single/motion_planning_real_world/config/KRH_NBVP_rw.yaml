@@ -1,0 +1,114 @@
+frame_id: "map"
+
+body:
+  frame_id: "base_link"
+
+timer_main:
+  rate: 10.0 # [Hz]
+
+# Bounded box relative to the takeoff pose
+
+# Patio Lamp
+#bounded_box:
+#  min_x: -2.5 # [m]
+#  max_x: 9.0  # [m]
+#  min_y: -2.0 # [m]
+#  max_y: 11.5 # [m]
+#  min_z: 2.0  # [m]
+#  max_z: 9.0  # [m]
+
+# Short Grove
+bounded_box:
+  min_x: -25.0 # [m]
+  max_x: 3.0   # [m]
+  min_y: -5.5  # [m]
+  max_y: 5.5   # [m]
+  min_z: 3.0   # [m]
+  max_z: 11.0  # [m]
+
+# Long Grove
+#bounded_box:
+#  min_x: -35.0 # [m]
+#  max_x: 3.0   # [m]
+#  min_y: -4.0  # [m]
+#  max_y: 5.5   # [m]
+#  min_z: 3.0   # [m]
+#  max_z: 12.5  # [m]
+
+# Long Clearing
+#bounded_box:
+#  min_x: -35.0 # [m]
+#  max_x: 3.0   # [m]
+#  min_y: -4.0  # [m]
+#  max_y: 5.5   # [m]
+#  min_z: 3.0   # [m]
+#  max_z: 12.5  # [m]
+
+# Basketball
+#bounded_box:
+#  min_x: -6.0 # [m]
+#  max_x: 6.0  # [m]
+#  min_y: -6.0 # [m]
+#  max_y: 6.0  # [m]
+#  min_z: 2.0  # [m]
+#  max_z: 8.0  # [m]
+
+# School Sim Test
+#bounded_box:
+#  min_x: -3.0  # [m]
+#  max_x: 47.0  # [m]
+#  min_y: -20.0 # [m]
+#  max_y: 15.0  # [m]
+#  min_z: 1.0   # [m]
+#  max_z: 20.0  # [m]
+
+# IST Lamp
+#bounded_box:
+#  min_x: -1.0 # [m]
+#  max_x: 11.0 # [m]
+#  min_y: -6.0 # [m]
+#  max_y: 6.0  # [m]
+#  min_z: 3.0  # [m]
+#  max_z: 9.0  # [m]
+
+uav_parameters:
+  max_vel: 0.5           # [m/s]
+  max_accel: 1.0         # [m/s^2]
+  max_heading_vel: 2.0   # [rad/s]
+  max_heading_accel: 2.0 # [rad/s^2]
+
+rrt:
+  N_max: 200
+  N_termination: 400
+  N_yaw_samples: 10
+  radius: 2.0    # [m]
+  step_size: 1.5 # [m]
+  tolerance: 0.5 # [m]
+
+camera:
+  frame_id: "camera_link"
+  h_fov: 1.38203    # [rad]
+  width: 640
+  height: 480
+  min_distance: 0.3 # [m]
+  max_distance: 5   # [m]
+
+path:
+  uav_radius: 1.5              # [m]
+  lambda: 0.25                 # (tuning factor)
+  lambda2: 0.5                 # (tuning factor)
+  max_acceleration_iterations: 3
+  recovery_enabled: true       # in-planner backtrack on | off
+  recovery_boxed_deadline: 4.0 # [s]
+  recovery_min_tree: 10        # tree size still counted as boxed in
+  recovery_timeout: 12.0       # [s]
+
+rotation:
+  step_deg: 45.0 # [deg] keep well under 180
+  settle: 1.0    # [s] wait per step
+
+exploration:
+  initial: true         # up, rotate, down before the first plan
+  climb: 1.5            # [m] relative climb
+  settle: 4.0           # [s] after the climb and the return
+  return_to_start: true # back to the start pose after the sweep

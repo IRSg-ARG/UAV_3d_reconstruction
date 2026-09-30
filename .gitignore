@@ -1,8 +1,15 @@
+# Catkin workspace
+build/
 devel/
 logs/
-build/
-bin/
-lib/
+.catkin_tools/
 
-# Ignore Visual Studio Code configuration files
+# Experiment output
+data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
 .vscode/
